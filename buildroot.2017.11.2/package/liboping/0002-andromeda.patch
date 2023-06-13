@@ -1,0 +1,106 @@
+--- liboping-1.9.0-orig/src/liboping.c	2017-04-10 09:58:03.529292564 -0600
++++ liboping-1.9.0/src/liboping.c	2017-04-10 09:59:35.786338994 -0600
+@@ -145,6 +145,13 @@
+ 	char                    set_mark;
+ 	int                     mark;
+ 
++	char                    set_dontfrag;
++	int                     dontfrag;
++
++	/* added for andromeda */
++	sendcb_t		sendcb;
++	recvcb_t		recvcb;
++
+ 	char                     errmsg[PING_ERRMSG_LEN];
+ 
+ 	pinghost_t              *head;
+@@ -592,6 +599,12 @@
+ 		}
+ 	} /* }}} for (cmsg) */
+ 
++	/* added for andromeda */
++	if(obj->recvcb)
++	{
++		obj->recvcb(payload_buffer, payload_buffer_len);
++	}
++
+ 	if (ph->addrfamily == AF_INET)
+ 	{
+ 		host = ping_receive_ipv4 (obj, payload_buffer, payload_buffer_len);
+@@ -785,6 +798,12 @@
+ {
+ 	ssize_t ret;
+ 
++	/* added for andromeda */
++	if(obj->sendcb)
++	{
++		obj->sendcb(buf, buflen);
++	}
++
+ 	if (gettimeofday (ph->timer, NULL) == -1)
+ 	{
+ 		timerclear (ph->timer);
+@@ -1137,6 +1156,9 @@
+ 	obj->addrfamily = PING_DEF_AF;
+ 	obj->data       = strdup (PING_DEF_DATA);
+ 	obj->qos        = 0;
++	/* added for andromeda */
++	obj->sendcb	= NULL;
++	obj->recvcb	= NULL;
+ 
+ 	return (obj);
+ }
+@@ -1338,6 +1360,25 @@
+ 		} /* case PING_OPT_MARK */
+ 		break;
+ 
++		case PING_OPT_DONTFRAG:
++		{
++			obj->dontfrag = *(int*)(value);
++			obj->set_dontfrag = 1;
++		}
++		break;
++
++		/* added for andromeda */
++		case PING_OPT_SENDCB:
++		{
++			obj->sendcb = (sendcb_t) value;
++		}
++		break;
++		case PING_OPT_RECVCB:
++		{
++			obj->recvcb = (recvcb_t) value;
++		}
++		break;
++
+ 		default:
+ 			ret = -2;
+ 	} /* switch (option) */
+@@ -1541,6 +1582,27 @@
+ 			}
+ 		}
+ #endif
++		if(obj->set_dontfrag)
++		{
++		    int opt;
++		    if(obj->dontfrag)
++			opt = IP_PMTUDISC_DO;
++		    else
++			opt = IP_PMTUDISC_DONT;
++		    if(setsockopt(ph->fd, IPPROTO_IP, IP_MTU_DISCOVER, &opt, sizeof(opt)) != 0)
++		    {
++#if WITH_DEBUG
++			char errbuf[PING_ERRMSG_LEN];
++			dprintf("setsockopt dontfrag (IP_MTU_DISCOVER): %s\n",
++				    sstrerror(errno, errbuf, sizeof(errbuf)));
++#endif
++			ping_set_errno(obj, errno);
++			close(ph->fd);
++			ph->fd = -1;
++			continue;
++		    }
++		}
++
+ #ifdef SO_TIMESTAMP
+ 		if (1) /* {{{ */
+ 		{

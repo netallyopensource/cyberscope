@@ -1,0 +1,63 @@
+--- liboping_ORIG.c	2019-04-29 17:55:22.376620986 -0600
++++ liboping-1.9.0-orig/src/liboping.c	2019-04-29 17:55:22.376620986 -0600
+@@ -105,6 +105,12 @@
+ 
+ #define PING_ERRMSG_LEN 256
+ 
++/* Added for G3 so that 64-byte ICMP_ECHOs can be sent.
++ * This size includes:
++ *     type, code, cksum, id, and seq. */
++#define MIN_ICMP_ECHO_HDR_SIZE 8
++
++
+ struct pinghost
+ {
+ 	/* username: name passed in by the user */
+@@ -305,12 +311,12 @@
+ 	buffer     += ip_hdr_len;
+ 	buffer_len -= ip_hdr_len;
+ 
+-	if (buffer_len < sizeof (struct icmp))
++	if (buffer_len < MIN_ICMP_ECHO_HDR_SIZE)
+ 		return (NULL);
+ 
+ 	icmp_hdr = (struct icmp *) buffer;
+-	buffer     += sizeof (struct icmp);
+-	buffer_len -= sizeof (struct icmp);
++	buffer     += MIN_ICMP_ECHO_HDR_SIZE;
++	buffer_len -= MIN_ICMP_ECHO_HDR_SIZE;
+ 
+ 	if (icmp_hdr->icmp_type != ICMP_ECHOREPLY)
+ 	{
+@@ -321,7 +327,7 @@
+ 	recv_checksum = icmp_hdr->icmp_cksum;
+ 	icmp_hdr->icmp_cksum = 0;
+ 	calc_checksum = ping_icmp4_checksum ((char *) icmp_hdr,
+-			sizeof (struct icmp) + buffer_len);
++			MIN_ICMP_ECHO_HDR_SIZE + buffer_len);
+ 
+ 	if (recv_checksum != calc_checksum)
+ 	{
+@@ -844,7 +850,7 @@
+ 
+ 	memset (buf, '\0', sizeof (buf));
+ 	icmp4 = (struct icmp *) buf;
+-	data  = (char *) (icmp4 + 1);
++	data  = (char *)icmp4 + MIN_ICMP_ECHO_HDR_SIZE;
+ 
+ 	icmp4->icmp_type  = ICMP_ECHO;
+ 	icmp4->icmp_code  = 0;
+@@ -852,11 +858,11 @@
+ 	icmp4->icmp_id    = htons (ph->ident);
+ 	icmp4->icmp_seq   = htons (ph->sequence);
+ 
+-	buflen = 4096 - sizeof (struct icmp);
++	buflen = 4096 - MIN_ICMP_ECHO_HDR_SIZE;
+ 	strncpy (data, ph->data, buflen);
+ 	datalen = strlen (data);
+ 
+-	buflen = datalen + sizeof (struct icmp);
++	buflen = datalen + MIN_ICMP_ECHO_HDR_SIZE;
+ 
+ 	icmp4->icmp_cksum = ping_icmp4_checksum (buf, buflen);
+ 

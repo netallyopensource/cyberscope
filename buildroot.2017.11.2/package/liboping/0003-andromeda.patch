@@ -1,0 +1,25 @@
+--- liboping-1.9.0-orig/src/oping.h	2016-06-27 00:41:31.000000000 -0600
++++ liboping-1.9.0/src/oping.h	2017-04-07 13:52:48.960239103 -0600
+@@ -46,6 +46,10 @@
+ struct pingobj;
+ typedef struct pingobj pingobj_t;
+ 
++/* added for andromeda */
++typedef void (*sendcb_t)(const void* buf, size_t buflen);
++typedef void (*recvcb_t)(const void* buf, size_t buflen);
++
+ #define PING_OPT_TIMEOUT 0x01
+ #define PING_OPT_TTL     0x02
+ #define PING_OPT_AF      0x04
+@@ -55,6 +59,11 @@
+ #define PING_OPT_QOS     0x40
+ #define PING_OPT_MARK    0x80
+ 
++/* added for andromeda */
++#define PING_OPT_DONTFRAG 0x100
++#define PING_OPT_SENDCB   0x200
++#define PING_OPT_RECVCB   0x400
++
+ #define PING_DEF_TIMEOUT 1.0
+ #define PING_DEF_TTL     255
+ #define PING_DEF_AF      AF_UNSPEC
